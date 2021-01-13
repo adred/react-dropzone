@@ -630,6 +630,9 @@ export function useDropzone(options = {}) {
             })
             acceptedFiles.splice(0)
           }
+
+          console.log('state', state)
+          console.log('acceptedFiles', acceptedFiles)
         
           dispatch({
             acceptedFiles,
