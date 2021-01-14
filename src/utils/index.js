@@ -135,3 +135,16 @@ export function composeEventHandlers(...fns) {
       return isPropagationStopped(event)
     })
 }
+
+export function removeDuplicates(acceptedFiles) {
+  const filtered = acceptedFiles.reduce((acc, current) => {
+    const x = acc.find(item => item.path === current.path);
+    if (!x) {
+      return acc.concat([current]);
+    } else {
+      return acc;
+    }
+  }, []);
+
+  return filtered
+}

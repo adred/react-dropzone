@@ -20,6 +20,7 @@ import {
   isIeOrEdge,
   isPropagationStopped,
   onDocumentDragOver,
+  removeDuplicates,
   TOO_MANY_FILES_REJECTION
 } from './utils/index'
 
@@ -60,7 +61,8 @@ const defaultProps = {
   noClick: false,
   noKeyboard: false,
   noDrag: false,
-  noDragEventsBubbling: false
+  noDragEventsBubbling: false,
+  appendFiles: true,
 }
 
 Dropzone.defaultProps = defaultProps
@@ -124,6 +126,11 @@ Dropzone.propTypes = {
    * If true, stops drag event propagation to parents
    */
   noDragEventsBubbling: PropTypes.bool,
+
+  /**
+   * If true, allows dragging of files multiple times without removing the provious ones
+   */
+  appendFiles: PropTypes.bool,
 
   /**
    * Minimum file size (in bytes)
@@ -341,6 +348,7 @@ const initialState = {
  * Note that it also stops tracking the focus state.
  * @param {boolean} [props.noDrag=false] If true, disables drag 'n' drop
  * @param {boolean} [props.noDragEventsBubbling=false] If true, stops drag event propagation to parents
+ * @param {boolean} [props.appendFiles=true] If true, allows dragging of files multiple times without removing the provious ones
  * @param {number} [props.minSize=0] Minimum file size (in bytes)
  * @param {number} [props.maxSize=Infinity] Maximum file size (in bytes)
  * @param {boolean} [props.disabled=false] Enable/disable the dropzone
@@ -398,7 +406,8 @@ export function useDropzone(options = {}) {
     noClick,
     noKeyboard,
     noDrag,
-    noDragEventsBubbling
+    noDragEventsBubbling,
+    appendFiles,
   } = {
     ...defaultProps,
     ...options
@@ -408,7 +417,7 @@ export function useDropzone(options = {}) {
   const inputRef = useRef(null)
 
   const [state, dispatch] = useReducer(reducer, initialState)
-  const { isFocused, isFileDialogActive, draggedFiles } = state
+  const { isFocused, isFileDialogActive, draggedFiles, acceptedFiles: prevAcceptedFiles } = state
 
   // Fn for opening the file dialog programmatically
   const openFileDialog = useCallback(() => {
@@ -609,7 +618,7 @@ export function useDropzone(options = {}) {
             return
           }
 
-          const acceptedFiles = []
+          let acceptedFiles = []
           const fileRejections = []
 
           files.forEach(file => {
@@ -623,6 +632,11 @@ export function useDropzone(options = {}) {
             }
           })
 
+          if (appendFiles) {
+            const mergedFiles = [...prevAcceptedFiles, ...acceptedFiles]
+            acceptedFiles = removeDuplicates(mergedFiles)
+          }
+
           if ((!multiple && acceptedFiles.length > 1) || (multiple && maxFiles >= 1 &&  acceptedFiles.length > maxFiles)) {
             // Reject everything and empty accepted files
             acceptedFiles.forEach(file => {
@@ -630,9 +644,6 @@ export function useDropzone(options = {}) {
             })
             acceptedFiles.splice(0)
           }
-
-          console.log('state', state)
-          console.log('acceptedFiles', acceptedFiles)
         
           dispatch({
             acceptedFiles,
@@ -665,7 +676,9 @@ export function useDropzone(options = {}) {
       onDrop,
       onDropAccepted,
       onDropRejected,
-      noDragEventsBubbling
+      noDragEventsBubbling,
+      appendFiles,
+      prevAcceptedFiles,
     ]
   )
 
