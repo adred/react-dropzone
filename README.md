@@ -16,7 +16,7 @@ yarn add selfmade-react-dropzone
 
 ## Usage
 
-Please to https://react-dropzone.js.org for documentation and examples. The only difference this package offers is the `appendFiles` option which is set to true by default.
+Please refer to https://react-dropzone.js.org for documentation and examples. The only difference this package offers is the `appendFiles` option which is set to true by default.
 
 ## License
 
