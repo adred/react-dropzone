@@ -70,21 +70,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/react-dropzone/react-dropzone.git"
+    "url": "https://github.com/adred/selfmade-react-dropzone.git"
   },
   "bugs": {
-    "url": "https://github.com/react-dropzone/react-dropzone/issues"
+    "url": "https://github.com/adred/selfmade-react-dropzone/issues"
   },
-  "homepage": "https://github.com/react-dropzone/react-dropzone",
-  "author": "Param Aggarwal",
-  "contributors": [
-    "Andrey Okonetchnikov <andrey@okonet.ru> (http://okonet.ru)",
-    "Mike Olson <me@mwolson.org>",
-    "Param Aggarwal",
-    "Tyler Waters <tyler.waters@gmail.com>",
-    "Rick Markins <rmarkins@gmail.com>",
-    "Roland Groza <rolandjitsu@gmail.com>"
-  ],
+  "homepage": "https://github.com/adred/selfmade-react-dropzone",
+  "author": "Redeye Adaya",
   "license": "MIT",
   "peerDependencies": {
     "react": ">= 16.8"
