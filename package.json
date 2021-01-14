@@ -76,7 +76,7 @@
     "url": "https://github.com/adred/selfmade-react-dropzone/issues"
   },
   "homepage": "https://github.com/adred/selfmade-react-dropzone",
-  "author": "Redeye Adaya",
+  "author": "Redeye Adaya <redeye@selfmade.com.au>",
   "license": "MIT",
   "peerDependencies": {
     "react": ">= 16.8"
