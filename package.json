@@ -9,7 +9,7 @@
     "build": "npm run clean && npm run build:umd && npm run build:es",
     "build:umd": "cross-env NODE_ENV=es rollup -c",
     "build:es": "cross-env BABEL_ENV=es babel ./src --out-dir ./dist/es --ignore '**/*.spec.js'",
-    "start": "styleguidist server",
+    "start": "styleguidist server --port=6060",
     "styleguide": "styleguidist build",
     "test": "cross-env NODE_ENV=test npm run eslint:src && jest --coverage && npm run typescript",
     "test:watch": "cross-env NODE_ENV=test jest --watch",

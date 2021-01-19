@@ -20,7 +20,6 @@ import {
   isIeOrEdge,
   isPropagationStopped,
   onDocumentDragOver,
-  removeDuplicates,
   TOO_MANY_FILES_REJECTION
 } from './utils/index'
 
@@ -63,6 +62,7 @@ const defaultProps = {
   noDrag: false,
   noDragEventsBubbling: false,
   appendFiles: true,
+  uploadConfig: {},
 }
 
 Dropzone.defaultProps = defaultProps
@@ -131,6 +131,15 @@ Dropzone.propTypes = {
    * If true, allows dragging of files multiple times without removing the provious ones
    */
   appendFiles: PropTypes.bool,
+
+  /**
+   * Upload config 
+   */
+  uploadConfig: PropTypes.shape({
+    url: PropTypes.string,
+    metadata: PropTypes.object,
+    headers: PropTypes.object,
+  }),
 
   /**
    * Minimum file size (in bytes)
@@ -349,6 +358,7 @@ const initialState = {
  * @param {boolean} [props.noDrag=false] If true, disables drag 'n' drop
  * @param {boolean} [props.noDragEventsBubbling=false] If true, stops drag event propagation to parents
  * @param {boolean} [props.appendFiles=true] If true, allows dragging of files multiple times without removing the provious ones
+ * @param {boolean} [props.uploadConfig={}] Upload config
  * @param {number} [props.minSize=0] Minimum file size (in bytes)
  * @param {number} [props.maxSize=Infinity] Maximum file size (in bytes)
  * @param {boolean} [props.disabled=false] Enable/disable the dropzone
@@ -408,6 +418,7 @@ export function useDropzone(options = {}) {
     noDrag,
     noDragEventsBubbling,
     appendFiles,
+    uploadConfig
   } = {
     ...defaultProps,
     ...options
@@ -417,7 +428,7 @@ export function useDropzone(options = {}) {
   const inputRef = useRef(null)
 
   const [state, dispatch] = useReducer(reducer, initialState)
-  const { isFocused, isFileDialogActive, draggedFiles, acceptedFiles: prevAcceptedFiles } = state
+  const { isFocused, isFileDialogActive, draggedFiles, acceptedFiles } = state
 
   // Fn for opening the file dialog programmatically
   const openFileDialog = useCallback(() => {
@@ -603,6 +614,68 @@ export function useDropzone(options = {}) {
     [rootRef, onDragLeave, noDragEventsBubbling]
   )
 
+  const uploadFile = (file) => {
+    const {url, metadata={}, headers = {}, onChangeStatus=undefined} = uploadConfig || {}
+    const fileWithMeta = {
+      file,
+      meta: {...file, ...metadata}
+    }
+
+    if (!url) {
+      fileWithMeta.meta.status = 'error_upload_params'
+      onChangeStatus(fileWithMeta)
+      return
+    }
+
+    const xhr = new XMLHttpRequest()
+    const formData = new FormData()
+    xhr.open('POST', url, true)
+
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
+    for (const header of Object.keys(headers)) {
+      xhr.setRequestHeader(header, headers[header])
+    }
+
+    xhr.upload.addEventListener('progress', e => {
+      console.log('e.loaded', e.loaded)
+      console.log('e.total', e.total)
+      fileWithMeta.meta.percent = (e.loaded * 100.0) / e.total || 100
+      onChangeStatus(fileWithMeta)
+    })
+
+    xhr.addEventListener('readystatechange', () => {
+      // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
+      if (xhr.readyState !== 2 && xhr.readyState !== 4) return
+
+      if (xhr.status === 0 && file.meta.status !== 'aborted') {
+        fileWithMeta.meta.status = 'exception_upload'
+        onChangeStatus(fileWithMeta)
+      }
+
+      if (xhr.status > 0 && xhr.status < 400) {
+        fileWithMeta.meta.percent = 100
+        if (xhr.readyState === 2) fileWithMeta.meta.status = 'headers_received'
+        if (xhr.readyState === 4) fileWithMeta.meta.status = 'done'
+        onChangeStatus(fileWithMeta)
+      }
+
+      if (xhr.status >= 400 && fileWithMeta.meta.status !== 'error_upload') {
+        fileWithMeta.meta.status = 'error_upload'
+        onChangeStatus(fileWithMeta)
+      }
+    })
+
+    formData.append('file', fileWithMeta.file)
+    for (const key in metadata) {
+      formData.append(key, metadata[key])
+    }
+    xhr.send(formData)
+    fileWithMeta.xhr = xhr
+    fileWithMeta.meta.status = 'uploading'
+    onChangeStatus(fileWithMeta)
+  }
+
+  const prevAcceptedFiles = acceptedFiles
   const onDropCb = useCallback(
     event => {
       event.preventDefault()
@@ -633,8 +706,14 @@ export function useDropzone(options = {}) {
           })
 
           if (appendFiles) {
-            const mergedFiles = [...prevAcceptedFiles, ...acceptedFiles]
-            acceptedFiles = removeDuplicates(mergedFiles)
+            const filteredFiles = []
+            acceptedFiles.forEach((file) => {
+              const found = prevAcceptedFiles.find((prevFile) => prevFile.path === file.path)
+              if (!found) {
+                filteredFiles.push(file)
+              }
+            })
+            acceptedFiles = [...prevAcceptedFiles, ...filteredFiles]
           }
 
           if ((!multiple && acceptedFiles.length > 1) || (multiple && maxFiles >= 1 &&  acceptedFiles.length > maxFiles)) {
@@ -643,6 +722,12 @@ export function useDropzone(options = {}) {
               fileRejections.push({ file, errors: [TOO_MANY_FILES_REJECTION] })
             })
             acceptedFiles.splice(0)
+          }
+
+          if (uploadConfig.url) {
+            acceptedFiles.forEach(file => {
+              uploadFile(file)
+            })
           }
         
           dispatch({
@@ -679,6 +764,7 @@ export function useDropzone(options = {}) {
       noDragEventsBubbling,
       appendFiles,
       prevAcceptedFiles,
+      uploadConfig
     ]
   )
 
