@@ -9,14 +9,47 @@ Install it from npm and include it in your React build process (using [Webpack](
 ```bash
 npm install --save selfmade-react-dropzone
 ```
+
 or:
+
 ```bash
 yarn add selfmade-react-dropzone
 ```
 
 ## Usage
 
-Please refer to https://react-dropzone.js.org for documentation and examples. The only difference this package offers is the `appendFiles` option which is set to true by default.
+Please refer to https://react-dropzone.js.org for most of the functionality it offers.
+
+For appending files, it's enabled by default. If you want to disable it just pass `appendFiles` prop and set to true
+
+```javascript
+const {
+  acceptedFiles,
+  draggedFiles,
+  getRootProps,
+  getInputProps,
+} = useDropzone({
+  appendFiles: false,
+});
+```
+
+For auto-uploading files, you need to pass `uploadConfig` prop. Note that this is work in progress...
+
+```javascriopt
+const {
+    acceptedFiles,
+    draggedFiles,
+    getRootProps,
+    getInputProps,
+} = useDropzone({
+    uploadConfig: {
+        url: 'https://httpbin.org/post', // required
+        onChangeStatus: (file) => {console.log(file)}, // required
+        metadata: {}, // optional
+        headers: {} // optional
+    }
+});
+```
 
 ## License
 
