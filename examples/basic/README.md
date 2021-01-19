@@ -9,16 +9,7 @@ import React from "react";
 import { useDropzone } from "react-dropzone";
 
 function Basic(props) {
-  const { acceptedFiles, getRootProps, getInputProps } = useDropzone({
-    uploadConfig: {
-      url: "https://httpbin.org/post",
-      metadata: { red: "red" },
-      headers: {},
-      onChangeStatus: (val) => {
-        console.log("val", val);
-      },
-    },
-  });
+  const { acceptedFiles, getRootProps, getInputProps } = useDropzone();
 
   const files = acceptedFiles.map((file) => (
     <li key={file.path}>
