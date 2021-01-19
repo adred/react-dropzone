@@ -615,18 +615,18 @@ export function useDropzone(options = {}) {
   )
 
   const uploadFile = (file) => {
-    const {url, metadata={}, headers = {}, onChangeStatus=undefined} = uploadConfig || {}
-    const fileWithMeta = {
-      file,
-      meta: {...file, ...metadata}
-    }
+    const {url, onChangeStatus, metadata={}, headers = {}} = uploadConfig || {}
 
-    if (!url) {
-      fileWithMeta.meta.status = 'error_upload_params'
-      onChangeStatus(fileWithMeta)
-      return
+    let status;
+    const fileAsObj = {
+      lastModified: file.lastModified,
+      lastModifiedDate: file.lastModifiedDate,
+      name: file.name,
+      path: file.path,
+      size: file.size,
+      type: file.type,
+      webkitRelativePath: file.webkitRelativePath
     }
-
     const xhr = new XMLHttpRequest()
     const formData = new FormData()
     xhr.open('POST', url, true)
@@ -637,45 +637,48 @@ export function useDropzone(options = {}) {
     }
 
     xhr.upload.addEventListener('progress', e => {
-      console.log('e.loaded', e.loaded)
-      console.log('e.total', e.total)
-      fileWithMeta.meta.percent = (e.loaded * 100.0) / e.total || 100
-      onChangeStatus(fileWithMeta)
+      const percent = (e.loaded / e.total) * 100.0
+      onChangeStatus({...fileAsObj, percent, status: 'uploading'})
     })
 
     xhr.addEventListener('readystatechange', () => {
       // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
-      if (xhr.readyState !== 2 && xhr.readyState !== 4) return
+      if (xhr.readyState !== 2 && xhr.readyState !== 4) {
+        return 
+      } 
 
       if (xhr.status === 0 && file.meta.status !== 'aborted') {
-        fileWithMeta.meta.status = 'exception_upload'
-        onChangeStatus(fileWithMeta)
+        const status = 'exception_upload'
+        onChangeStatus({...fileAsObj, status})
       }
 
       if (xhr.status > 0 && xhr.status < 400) {
-        fileWithMeta.meta.percent = 100
-        if (xhr.readyState === 2) fileWithMeta.meta.status = 'headers_received'
-        if (xhr.readyState === 4) fileWithMeta.meta.status = 'done'
-        onChangeStatus(fileWithMeta)
+        if (xhr.readyState === 2) {
+          status = 'headers_received'
+        }
+        if (xhr.readyState === 4) {
+          status = 'done'
+        }
+        onChangeStatus({...fileAsObj, status})
       }
 
-      if (xhr.status >= 400 && fileWithMeta.meta.status !== 'error_upload') {
-        fileWithMeta.meta.status = 'error_upload'
-        onChangeStatus(fileWithMeta)
+      if (xhr.status >= 400) {
+        status = 'error_upload'
+        onChangeStatus({...fileAsObj, status})
       }
     })
 
-    formData.append('file', fileWithMeta.file)
+    formData.append('file', file)
     for (const key in metadata) {
       formData.append(key, metadata[key])
     }
     xhr.send(formData)
-    fileWithMeta.xhr = xhr
-    fileWithMeta.meta.status = 'uploading'
-    onChangeStatus(fileWithMeta)
+    status = 'uploading'
+    onChangeStatus({...fileAsObj, status, xhr, percent: 0})
   }
 
   const prevAcceptedFiles = acceptedFiles
+  const {url, onChangeStatus} = uploadConfig
   const onDropCb = useCallback(
     event => {
       event.preventDefault()
@@ -724,7 +727,7 @@ export function useDropzone(options = {}) {
             acceptedFiles.splice(0)
           }
 
-          if (uploadConfig.url) {
+          if (url && onChangeStatus) {
             acceptedFiles.forEach(file => {
               uploadFile(file)
             })
