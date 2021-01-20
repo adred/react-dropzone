@@ -24,6 +24,13 @@ export interface FileRejection {
   errors: FileError[];
 }
 
+export interface UploadConfig {
+  url: string;
+  metadata: { [key: string]: any };
+  headers: { [key: string]: any };
+  onUpload: (file: { [key: string]: any }) => void;
+}
+
 export type DropzoneOptions = Pick<React.HTMLProps<HTMLElement>, PropTypes> & {
   accept?: string | string[];
   minSize?: number;
@@ -47,7 +54,7 @@ export type DropzoneOptions = Pick<React.HTMLProps<HTMLElement>, PropTypes> & {
     event: DropEvent
   ) => Promise<Array<File | DataTransferItem>>;
   onFileDialogCancel?: () => void;
-  onUpload?: (file: { [key: string]: any }) => void;
+  uploadConfig?: UploadConfig;
 };
 
 export type DropEvent =
