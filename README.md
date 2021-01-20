@@ -44,7 +44,7 @@ const {
 } = useDropzone({
   uploadConfig: {
     url: "https://httpbin.org/post", // required
-    onChangeStatus: (file) => {
+    onUpload: (file) => {
       console.log(file);
     }, // required
     metadata: {}, // optional
