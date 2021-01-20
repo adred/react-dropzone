@@ -26,9 +26,9 @@ export interface FileRejection {
 
 export interface UploadConfig {
   url: string;
-  metadata: { [key: string]: any };
-  headers: { [key: string]: any };
   onUpload: (file: { [key: string]: any }) => void;
+  metadata?: { [key: string]: any };
+  headers?: { [key: string]: any };
 }
 
 export type DropzoneOptions = Pick<React.HTMLProps<HTMLElement>, PropTypes> & {

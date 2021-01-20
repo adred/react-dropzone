@@ -158,7 +158,7 @@
       "path": "@commitlint/prompt"
     }
   },
-  "version": "0.2.5",
+  "version": "0.2.6",
   "engines": {
     "node": ">= 10"
   },
