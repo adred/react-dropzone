@@ -615,7 +615,7 @@ export function useDropzone(options = {}) {
   )
 
   const uploadFile = (file) => {
-    const {url, onChangeStatus, metadata={}, headers = {}} = uploadConfig || {}
+    const {url, onUpload, metadata={}, headers = {}} = uploadConfig || {}
 
     let status;
     const fileAsObj = {
@@ -638,7 +638,7 @@ export function useDropzone(options = {}) {
 
     xhr.upload.addEventListener('progress', e => {
       const percent = (e.loaded / e.total) * 100.0
-      onChangeStatus({...fileAsObj, percent, status: 'uploading'})
+      onUpload({...fileAsObj, percent, status: 'uploading'})
     })
 
     xhr.addEventListener('readystatechange', () => {
@@ -649,7 +649,7 @@ export function useDropzone(options = {}) {
 
       if (xhr.status === 0 && file.meta.status !== 'aborted') {
         const status = 'exception_upload'
-        onChangeStatus({...fileAsObj, status})
+        onUpload({...fileAsObj, status})
       }
 
       if (xhr.status > 0 && xhr.status < 400) {
@@ -659,12 +659,12 @@ export function useDropzone(options = {}) {
         if (xhr.readyState === 4) {
           status = 'done'
         }
-        onChangeStatus({...fileAsObj, status})
+        onUpload({...fileAsObj, status})
       }
 
       if (xhr.status >= 400) {
         status = 'error_upload'
-        onChangeStatus({...fileAsObj, status})
+        onUpload({...fileAsObj, status})
       }
     })
 
@@ -674,11 +674,11 @@ export function useDropzone(options = {}) {
     }
     xhr.send(formData)
     status = 'uploading'
-    onChangeStatus({...fileAsObj, status, xhr, percent: 0})
+    onUpload({...fileAsObj, status, xhr, percent: 0})
   }
 
   const prevAcceptedFiles = acceptedFiles
-  const {url, onChangeStatus} = uploadConfig
+  const {url, onUpload} = uploadConfig
   const onDropCb = useCallback(
     event => {
       event.preventDefault()
@@ -727,7 +727,7 @@ export function useDropzone(options = {}) {
             acceptedFiles.splice(0)
           }
 
-          if (url && onChangeStatus) {
+          if (url && onUpload) {
             acceptedFiles.forEach(file => {
               uploadFile(file)
             })
