@@ -1,6 +1,6 @@
 # selfmade-react-dropzone
 
-Simple React hook to create a HTML5-compliant drag'n'drop zone for files with support for appending files through multiple drag and drop. This is based on https://github.com/react-dropzone/react-dropzone/
+Simple React hook to create a HTML5-compliant drag'n'drop zone for files with support for auto-upload and appending files through multiple drag and drop. This is based on https://github.com/react-dropzone/react-dropzone/
 
 ## Installation
 
