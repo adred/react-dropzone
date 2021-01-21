@@ -142,6 +142,7 @@ export function composeEventHandlers(...fns) {
  */
 export const covertFileToObject = (file) => {
   return {
+    file, // original file
     lastModified: file.lastModified,
     lastModifiedDate: file.lastModifiedDate,
     name: file.name,

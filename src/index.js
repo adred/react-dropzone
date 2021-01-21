@@ -621,7 +621,7 @@ export function useDropzone(options = {}) {
 
   const [updatedFile, setUpdatedFile] = useState()
 
-  // Replace uploaded file with the one whose percent prop is the latest
+  // Replace a file in the uploadedFiles with the one with latest status
   useEffect(() => {
     if (updatedFile) {
       const updatedFiles = [...uploadedFiles]
@@ -633,6 +633,7 @@ export function useDropzone(options = {}) {
         updatedFiles[targetIndex] = updatedFile
       }
 
+      // Reset to prevent infinite loop
       setUpdatedFile(undefined)
 
       dispatch({
@@ -657,7 +658,7 @@ export function useDropzone(options = {}) {
 
     xhr.upload.addEventListener('progress', e => {
       const percent = (e.loaded / e.total) * 100.0
-      setUpdatedFile({...covertFileToObject(file), percent})
+      setUpdatedFile({...file, percent, status: 'uploading'})
     })
 
     xhr.addEventListener('readystatechange', () => {
@@ -667,8 +668,8 @@ export function useDropzone(options = {}) {
       } 
 
       if (xhr.status === 0) {
-        const status = 'exception_upload'
-        setUpdatedFile({...covertFileToObject(file), status})
+        status = 'exception_upload'
+        setUpdatedFile({...file, status})
       }
 
       if (xhr.status > 0 && xhr.status < 400) {
@@ -678,21 +679,26 @@ export function useDropzone(options = {}) {
         if (xhr.readyState === 4) {
           status = 'done'
         }
-        setUpdatedFile({...covertFileToObject(file), status})
+        setUpdatedFile({...file, status})
       }
 
-      if (xhr.status >= 400) {
+      if (xhr.status >= 400 && file.status !== 'error_upload') {
         status = 'error_upload'
-        setUpdatedFile({...covertFileToObject(file), status})
+        setUpdatedFile({...file, status})
       }
     })
 
-    formData.append('file', file)
+    formData.append('file', file.file)
     for (const key in metadata) {
       formData.append(key, metadata[key])
     }
     xhr.send(formData)
   }
+
+  const reUploadFile = (file) => {
+    file.status = 'restarted'
+    uploadFile(file)
+  } 
 
   const onDropCb = useCallback(
     event => {
@@ -746,20 +752,29 @@ export function useDropzone(options = {}) {
 
           // Upload files
           if (uploadConfig) {
+            // Only upload files that are new
             const filesToUpload = []
             newAcceptedFiles.forEach((newFile) => {
               const found = uploadedFiles.find((file) => file.path === newFile.path)
               if (!found) {
-                filesToUpload.push(newFile)
+                const file = {
+                  ...covertFileToObject(newFile), 
+                  status: 'started', 
+                  percent: 0
+                }
+                file.restart = () => reUploadFile(file) 
+                filesToUpload.push(file)
               }
             })
 
-            const newUploadedFiles = [...uploadedFiles, ...filesToUpload.map(file => ({...covertFileToObject(file), status: 'uploading', percent: 0}))]
+            // Append new files to already uploaded files
+            const newUploadedFiles = [...uploadedFiles, ...filesToUpload]
             dispatch({
               uploadedFiles: newUploadedFiles,
               type: 'setUploadedFiles'
             })
 
+            // Upload files
             filesToUpload.forEach(file => {
               uploadFile(file)
             })
