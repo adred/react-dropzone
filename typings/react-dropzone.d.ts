@@ -26,9 +26,8 @@ export interface FileRejection {
 
 export interface UploadConfig {
   url: string;
-  onUpload: (file: { [key: string]: any }) => void;
-  metadata?: { [key: string]: any };
-  headers?: { [key: string]: any };
+  metadata?: object;
+  headers?: object;
 }
 
 export type DropzoneOptions = Pick<React.HTMLProps<HTMLElement>, PropTypes> & {
@@ -71,6 +70,7 @@ export type DropzoneState = DropzoneRef & {
   isFileDialogActive: boolean;
   draggedFiles: File[];
   acceptedFiles: File[];
+  uploadedFiles: object[];
   fileRejections: FileRejection[];
   rootRef: React.RefObject<HTMLElement>;
   inputRef: React.RefObject<HTMLInputElement>;

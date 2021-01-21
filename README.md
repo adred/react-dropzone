@@ -33,20 +33,18 @@ const {
 });
 ```
 
-For auto-uploading files, you need to pass `uploadConfig` prop. Note that this is work in progress...
+For auto-uploading files, you need to pass `uploadConfig` prop. To monitor the progress, you can access the files with status through `uploadedFiles` state. Note that this is work in progress...
 
 ```javascript
 const {
   acceptedFiles,
+  uploadedFiles,
   draggedFiles,
   getRootProps,
   getInputProps,
 } = useDropzone({
   uploadConfig: {
     url: "https://httpbin.org/post", // required
-    onUpload: (file) => {
-      console.log(file);
-    }, // required
     metadata: {}, // optional
     headers: {}, // optional
   },

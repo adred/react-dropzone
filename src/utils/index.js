@@ -135,3 +135,19 @@ export function composeEventHandlers(...fns) {
       return isPropagationStopped(event)
     })
 }
+
+/**
+ * Converts File to javascript object
+ * @param {file} file 
+ */
+export const covertFileToObject = (file) => {
+  return {
+    lastModified: file.lastModified,
+    lastModifiedDate: file.lastModifiedDate,
+    name: file.name,
+    path: file.path,
+    size: file.size,
+    type: file.type,
+    webkitRelativePath: file.webkitRelativePath,
+  }
+}
