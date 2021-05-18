@@ -142,6 +142,7 @@ Dropzone.propTypes = {
     url: PropTypes.string,
     metadata: PropTypes.object,
     headers: PropTypes.object,
+    withCredentials: PropTypes.bool,
   }),
 
   /**
@@ -644,12 +645,13 @@ export function useDropzone(options = {}) {
   }, [uploadedFiles, updatedFile])
 
   const uploadFile = (file) => {
-    const {url, metadata={}, headers = {}} = uploadConfig || {}
+    const {url, metadata={}, headers = {}, withCredentials = false} = uploadConfig || {}
 
     let status;
     const xhr = new XMLHttpRequest()
-    const formData = new FormData()
     xhr.open('POST', url, true)
+    xhr.withCredentials = withCredentials;
+    const formData = new FormData()
 
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
     for (const header of Object.keys(headers)) {

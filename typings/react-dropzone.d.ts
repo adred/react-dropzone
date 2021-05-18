@@ -28,6 +28,7 @@ export interface UploadConfig {
   url: string;
   metadata?: object;
   headers?: object;
+  withCredentials?: boolean;
 }
 
 export type DropzoneOptions = Pick<React.HTMLProps<HTMLElement>, PropTypes> & {
