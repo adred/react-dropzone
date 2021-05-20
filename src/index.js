@@ -677,8 +677,7 @@ export function useDropzone(options = {}) {
       if (xhr.status > 0 && xhr.status < 400) {
         if (xhr.readyState === 2) {
           status = 'headers_received'
-        }
-        if (xhr.readyState === 4) {
+        } else if (xhr.readyState === 4) {
           status = 'done'
         }
         setUpdatedFile({...file, status})
