@@ -8,7 +8,6 @@ import React, {
   useMemo,
   useReducer,
   useRef,
-  useState
 } from 'react'
 import PropTypes from 'prop-types'
 import { fromEvent } from 'file-selector'
@@ -434,7 +433,7 @@ export function useDropzone(options = {}) {
   const inputRef = useRef(null)
 
   const [state, dispatch] = useReducer(reducer, initialState)
-  const { isFocused, isFileDialogActive, draggedFiles, acceptedFiles, uploadedFiles } = state
+  const { isFocused, isFileDialogActive, draggedFiles } = state
 
   // Fn for opening the file dialog programmatically
   const openFileDialog = useCallback(() => {
@@ -620,34 +619,85 @@ export function useDropzone(options = {}) {
     [rootRef, onDragLeave, noDragEventsBubbling]
   )
 
-  const [updatedFile, setUpdatedFile] = useState()
+  const getUpdatedFiles = (updatedFile, acceptedFiles) => {
+    const updatedFiles = [...acceptedFiles]
 
-  // Replace a file in the uploadedFiles with the one with latest status
-  useEffect(() => {
-    if (updatedFile) {
-      const updatedFiles = [...uploadedFiles]
-      const targetIndex = uploadedFiles.findIndex(file => file.path === updatedFile.path)
+      const targetIndex = acceptedFiles.findIndex(file => file.path === updatedFile.path)
 
       if (targetIndex === -1) {
         updatedFiles.push(updatedFile)
       } else {
+        console.log('getUpdatedFiles:updatedFile', updatedFile)
         updatedFiles[targetIndex] = updatedFile
       }
 
-      // Reset to prevent infinite loop
-      setUpdatedFile(undefined)
+      return updatedFiles
+  }
 
+  const onProgress = (e, file, acceptedFiles) => {
+    const percent = (e.loaded * 100.0) / e.total || 100
+    let status = 'uploading'
+
+    // console.log('onProgress:file', file)
+    // console.log('onProgress:acceptedFiles', acceptedFiles)
+    console.log(`onProgress:percent:${file.name}`, percent)
+    // console.log('onProgress:status', status)
+    // console.log('onProgress:getUpdatedFiles', getUpdatedFiles({...file, percent, status}, acceptedFiles))
+
+    dispatch({
+      uploadedFiles: getUpdatedFiles({...file, percent, status}, acceptedFiles),
+      type: 'setUploadedFiles'
+    })
+  }
+
+  const onReadyStateChange = (xhr, file, acceptedFiles) => {
+    // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
+    if (xhr.readyState !== 2 && xhr.readyState !== 4) {
+      return 
+    } 
+
+    let status
+    if (xhr.status === 0) {
+      status = 'exception_upload'
       dispatch({
-        uploadedFiles: updatedFiles,
+        uploadedFiles: getUpdatedFiles({...file, status}, acceptedFiles),
         type: 'setUploadedFiles'
       })
     }
-  }, [uploadedFiles, updatedFile])
 
-  const uploadFile = (file) => {
+    // console.log('file', file)
+    // console.log('xhr', xhr)
+
+    if (xhr.status > 0 && xhr.status < 400) {
+      if (xhr.readyState === 2) {
+        status = 'headers_received'
+      } 
+      if (xhr.readyState === 4) {
+        status = 'done'
+        // console.log('got here')
+      }
+      // console.log('status', status)
+      // Reset to prevent infinite loop
+      dispatch({
+        uploadedFiles: getUpdatedFiles({...file, status}, acceptedFiles),
+        type: 'setUploadedFiles'
+      })
+      // console.log('updated the file')
+      // setUpdatedFile(undefined)
+    }
+
+    if (xhr.status >= 400 && file.status !== 'error_upload') {
+      status = 'error_upload'
+      dispatch({
+        uploadedFiles: getUpdatedFiles({...file, status}, acceptedFiles),
+        type: 'setUploadedFiles'
+      })
+    }
+  }
+
+  const uploadFile = (file, acceptedFiles) => {
     const {url, metadata={}, headers = {}, withCredentials = false} = uploadConfig || {}
 
-    let status;
     const xhr = new XMLHttpRequest()
     xhr.open('POST', url, true)
     xhr.withCredentials = withCredentials;
@@ -658,36 +708,8 @@ export function useDropzone(options = {}) {
       xhr.setRequestHeader(header, headers[header])
     }
 
-    xhr.upload.addEventListener('progress', e => {
-      const percent = (e.loaded / e.total) * 100.0
-      setUpdatedFile({...file, percent, status: 'uploading'})
-    })
-
-    xhr.addEventListener('readystatechange', () => {
-      // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
-      if (xhr.readyState !== 2 && xhr.readyState !== 4) {
-        return 
-      } 
-
-      if (xhr.status === 0) {
-        status = 'exception_upload'
-        setUpdatedFile({...file, status})
-      }
-
-      if (xhr.status > 0 && xhr.status < 400) {
-        if (xhr.readyState === 2) {
-          status = 'headers_received'
-        } else if (xhr.readyState === 4) {
-          status = 'done'
-        }
-        setUpdatedFile({...file, status})
-      }
-
-      if (xhr.status >= 400 && file.status !== 'error_upload') {
-        status = 'error_upload'
-        setUpdatedFile({...file, status})
-      }
-    })
+    xhr.upload.addEventListener('progress', (e) => onProgress(e, file, acceptedFiles))
+    // xhr.addEventListener('readystatechange', () => onReadyStateChange(xhr, file, uploadedFiles))
 
     formData.append('file', file.file)
     for (const key in metadata) {
@@ -697,8 +719,8 @@ export function useDropzone(options = {}) {
   }
 
   const reUploadFile = (file) => {
-    file.status = 'restarted'
-    uploadFile(file)
+    let status = 'restarted'
+    uploadFile({...file, status})
   } 
 
   const onDropCb = useCallback(
@@ -716,87 +738,68 @@ export function useDropzone(options = {}) {
             return
           }
 
-          let newAcceptedFiles = []
+          const acceptedFiles = []
           const fileRejections = []
 
           files.forEach(file => {
             const [accepted, acceptError] = fileAccepted(file, accept)
             const [sizeMatch, sizeError] = fileMatchSize(file, minSize, maxSize)
             if (accepted && sizeMatch) {
-              newAcceptedFiles.push(file)
+              file.restart = () => reUploadFile(file) 
+              acceptedFiles.push(file)
             } else {
               const errors = [acceptError, sizeError].filter(e => e)
               fileRejections.push({ file, errors })
             }
           })
 
-          // Append new dropped files
-          const filteredFiles = []
-          if (appendFiles) {
-            newAcceptedFiles.forEach((newFile) => {
-              const found = acceptedFiles.find((file) => file.path === newFile.path)
-              if (!found) {
-                filteredFiles.push(newFile)
-              }
-            })
-
-            newAcceptedFiles = [...acceptedFiles, ...filteredFiles]
-          }
-
-          if ((!multiple && newAcceptedFiles.length > 1) || (multiple && maxFiles >= 1 &&  newAcceptedFiles.length > maxFiles)) {
+          if ((!multiple && acceptedFiles.length > 1) || (multiple && maxFiles >= 1 &&  acceptedFiles.length > maxFiles)) {
             // Reject everything and empty accepted files
-            newAcceptedFiles.forEach(file => {
+            acceptedFiles.forEach(file => {
               fileRejections.push({ file, errors: [TOO_MANY_FILES_REJECTION] })
             })
-            newAcceptedFiles.splice(0)
+            acceptedFiles.splice(0)
           }
+
+          const _acceptedFiles = []
+          acceptedFiles.forEach((newFile) => {
+            const file = {
+              ...covertFileToObject(newFile), 
+              status: 'started', 
+              percent: 0
+            }
+            file.restart = () => reUploadFile(file) 
+            _acceptedFiles.push(file)
+          })
+
+          dispatch({
+            uploadedFiles: _acceptedFiles,
+            type: 'setUploadedFiles'
+          })
+
+          console.log('hereeeee', _acceptedFiles)
 
           // Upload files
-          if (uploadConfig) {
-            // Only upload files that are new
-            const filesToUpload = []
-            newAcceptedFiles.forEach((newFile) => {
-              const found = uploadedFiles.find((file) => file.path === newFile.path)
-              if (!found) {
-                const file = {
-                  ...covertFileToObject(newFile), 
-                  status: 'started', 
-                  percent: 0
-                }
-                file.restart = () => reUploadFile(file) 
-                filesToUpload.push(file)
-              }
-            })
-
-            // Append new files to already uploaded files
-            const newUploadedFiles = [...uploadedFiles, ...filesToUpload]
-            dispatch({
-              uploadedFiles: newUploadedFiles,
-              type: 'setUploadedFiles'
-            })
-
-            // Upload files
-            filesToUpload.forEach(file => {
-              uploadFile(file)
-            })
-          }
+          _acceptedFiles.forEach(file => {
+            uploadFile(file, _acceptedFiles)
+          })
         
           dispatch({
-            acceptedFiles: newAcceptedFiles,
+            acceptedFiles: acceptedFiles,
             fileRejections,
             type: 'setFiles'
           })
 
           if (onDrop) {
-            onDrop(newAcceptedFiles, fileRejections, event)
+            onDrop(acceptedFiles, fileRejections, event)
           }
 
           if (fileRejections.length > 0 && onDropRejected) {
             onDropRejected(fileRejections, event)
           }
 
-          if (newAcceptedFiles.length > 0 && onDropAccepted) {
-            onDropAccepted(newAcceptedFiles, event)
+          if (acceptedFiles.length > 0 && onDropAccepted) {
+            onDropAccepted(acceptedFiles, event)
           }
         })
       }
@@ -814,8 +817,6 @@ export function useDropzone(options = {}) {
       onDropRejected,
       noDragEventsBubbling,
       appendFiles,
-      acceptedFiles,
-      uploadedFiles,
       uploadConfig
     ]
   )
