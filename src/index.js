@@ -21,6 +21,7 @@ import {
   isPropagationStopped,
   onDocumentDragOver,
   covertFileToObject,
+  getUpdatedFiles,
   TOO_MANY_FILES_REJECTION
 } from './utils/index'
 
@@ -250,6 +251,21 @@ Dropzone.propTypes = {
 
 export default Dropzone
 
+export const usePrevious = (value) => {
+  // The ref object is a generic container whose current property is mutable ...
+  // ... and can hold any value, similar to an instance property on a class
+  const ref = useRef();
+
+  // Store current value in ref
+  useEffect(() => {
+      ref.current = value;
+  }, [value]); // Only re-run if value changes
+
+  // Return previous value (happens before update in useEffect above)
+  return ref.current;
+};
+
+
 /**
  * A function that is invoked for the `dragenter`,
  * `dragover` and `dragleave` events.
@@ -324,7 +340,9 @@ const initialState = {
   draggedFiles: [],
   acceptedFiles: [],
   uploadedFiles: [],
-  fileRejections: []
+  fileRejections: [],
+  updatedFiles: [],
+  updatedFile: {},
 }
 
 /**
@@ -422,7 +440,6 @@ export function useDropzone(options = {}) {
     noKeyboard,
     noDrag,
     noDragEventsBubbling,
-    appendFiles,
     uploadConfig
   } = {
     ...defaultProps,
@@ -433,7 +450,9 @@ export function useDropzone(options = {}) {
   const inputRef = useRef(null)
 
   const [state, dispatch] = useReducer(reducer, initialState)
-  const { isFocused, isFileDialogActive, draggedFiles } = state
+  const { isFocused, isFileDialogActive, draggedFiles, updatedFile, uploadedFiles, updatedFiles } = state
+  console.log('STATE', state)
+  const prevUpdatedFile = usePrevious(updatedFile)
 
   // Fn for opening the file dialog programmatically
   const openFileDialog = useCallback(() => {
@@ -619,24 +638,30 @@ export function useDropzone(options = {}) {
     [rootRef, onDragLeave, noDragEventsBubbling]
   )
 
-  const getUpdatedFiles = (updatedFile, acceptedFiles) => {
-    const updatedFiles = [...acceptedFiles]
+  const getUpdatedFiles = (updatedFile, uploadedFiles) => {
+    const updatedFiles = [...uploadedFiles]
 
-      const targetIndex = acceptedFiles.findIndex(file => file.path === updatedFile.path)
+    const targetIndex = uploadedFiles.findIndex(file => file.path === updatedFile.path)
 
-      if (targetIndex === -1) {
-        updatedFiles.push(updatedFile)
-      } else {
-        console.log('getUpdatedFiles:updatedFile', updatedFile)
-        updatedFiles[targetIndex] = updatedFile
-      }
+    if (targetIndex === -1) {
+      updatedFiles.push(updatedFile)
+    } else {
+      console.log('getUpdatedFiles:updatedFile', updatedFile)
+      updatedFiles[targetIndex] = updatedFile
+    }
 
-      return updatedFiles
+    return updatedFiles
   }
 
-  const onProgress = (e, file, acceptedFiles) => {
+  useEffect(() => {
+    dispatch({
+      uploadedFiles: updatedFiles,
+      type: 'setUploadedFiles'
+    })
+  }, [updatedFiles])
+
+  const onProgress = (e, file) => {
     const percent = (e.loaded * 100.0) / e.total || 100
-    let status = 'uploading'
 
     // console.log('onProgress:file', file)
     // console.log('onProgress:acceptedFiles', acceptedFiles)
@@ -645,12 +670,12 @@ export function useDropzone(options = {}) {
     // console.log('onProgress:getUpdatedFiles', getUpdatedFiles({...file, percent, status}, acceptedFiles))
 
     dispatch({
-      uploadedFiles: getUpdatedFiles({...file, percent, status}, acceptedFiles),
-      type: 'setUploadedFiles'
+      updatedFile: {...file, percent, status: 'uploading'},
+      type: 'setUpdatedFiles'
     })
   }
 
-  const onReadyStateChange = (xhr, file, acceptedFiles) => {
+  const onReadyStateChange = (xhr, file) => {
     // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
     if (xhr.readyState !== 2 && xhr.readyState !== 4) {
       return 
@@ -660,8 +685,8 @@ export function useDropzone(options = {}) {
     if (xhr.status === 0) {
       status = 'exception_upload'
       dispatch({
-        uploadedFiles: getUpdatedFiles({...file, status}, acceptedFiles),
-        type: 'setUploadedFiles'
+        updatedFile: {...file, status: 'exception_upload'},
+        type: 'setUpdatedFiles'
       })
     }
 
@@ -679,23 +704,22 @@ export function useDropzone(options = {}) {
       // console.log('status', status)
       // Reset to prevent infinite loop
       dispatch({
-        uploadedFiles: getUpdatedFiles({...file, status}, acceptedFiles),
-        type: 'setUploadedFiles'
+        updatedFile: {...file, status},
+        type: 'setUpdatedFiles'
       })
       // console.log('updated the file')
       // setUpdatedFile(undefined)
     }
 
     if (xhr.status >= 400 && file.status !== 'error_upload') {
-      status = 'error_upload'
       dispatch({
-        uploadedFiles: getUpdatedFiles({...file, status}, acceptedFiles),
-        type: 'setUploadedFiles'
+        updatedFile: {...file, status: 'error_upload'},
+        type: 'setUpdatedFiles'
       })
     }
   }
 
-  const uploadFile = (file, acceptedFiles) => {
+  const uploadFile = (file) => {
     const {url, metadata={}, headers = {}, withCredentials = false} = uploadConfig || {}
 
     const xhr = new XMLHttpRequest()
@@ -708,8 +732,8 @@ export function useDropzone(options = {}) {
       xhr.setRequestHeader(header, headers[header])
     }
 
-    xhr.upload.addEventListener('progress', (e) => onProgress(e, file, acceptedFiles))
-    // xhr.addEventListener('readystatechange', () => onReadyStateChange(xhr, file, uploadedFiles))
+    xhr.upload.addEventListener('progress', (e) => onProgress(e, file))
+    xhr.addEventListener('readystatechange', () => onReadyStateChange(xhr, file))
 
     formData.append('file', file.file)
     for (const key in metadata) {
@@ -772,16 +796,16 @@ export function useDropzone(options = {}) {
             _acceptedFiles.push(file)
           })
 
-          dispatch({
-            uploadedFiles: _acceptedFiles,
-            type: 'setUploadedFiles'
-          })
+          // dispatch({
+          //   uploadedFiles: _acceptedFiles,
+          //   type: 'setUploadedFiles'
+          // })
 
           console.log('hereeeee', _acceptedFiles)
 
           // Upload files
           _acceptedFiles.forEach(file => {
-            uploadFile(file, _acceptedFiles)
+            uploadFile(file)
           })
         
           dispatch({
@@ -816,7 +840,6 @@ export function useDropzone(options = {}) {
       onDropAccepted,
       onDropRejected,
       noDragEventsBubbling,
-      appendFiles,
       uploadConfig
     ]
   )
@@ -960,6 +983,14 @@ function reducer(state, action) {
         acceptedFiles: action.acceptedFiles,
         fileRejections: action.fileRejections
       }
+    case 'setUpdatedFiles':
+      const {updatedFiles} = state
+      const files = getUpdatedFiles(action.updatedFile, updatedFiles)
+      return {
+        ...state,
+        updatedFile: action.updatedFile,
+        updatedFiles: files,
+      }
     case 'setUploadedFiles':
       return {
         ...state,
@@ -974,6 +1005,7 @@ function reducer(state, action) {
         acceptedFiles: [],
         uploadedFiles: [],
         fileRejections: [],
+        updatedFile: {},
       }
     default:
       return state

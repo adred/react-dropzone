@@ -152,3 +152,24 @@ export const covertFileToObject = (file) => {
     webkitRelativePath: file.webkitRelativePath,
   }
 }
+
+/**
+ * Replace file in uploadFiles that corresponds to updateFile
+ * @param {*} updatedFile 
+ * @param {*} uploadedFiles 
+ * @returns 
+ */
+export const getUpdatedFiles = (updatedFile, uploadedFiles) => {
+  const updatedFiles = [...uploadedFiles]
+
+    const targetIndex = uploadedFiles.findIndex(file => file.path === updatedFile.path)
+
+    if (targetIndex === -1) {
+      updatedFiles.push(updatedFile)
+    } else {
+      console.log('getUpdatedFiles:updatedFile:util', updatedFile)
+      updatedFiles[targetIndex] = updatedFile
+    }
+
+    return updatedFiles
+}
