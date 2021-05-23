@@ -756,7 +756,9 @@ export function useDropzone(options = {}) {
           })
 
           // Upload files
-          uploadFiles(acceptedFiles)
+          if (uploadConfig) {
+            uploadFiles(acceptedFiles)
+          }
 
           if (onDrop) {
             onDrop(acceptedFiles, fileRejections, event)

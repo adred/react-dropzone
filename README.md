@@ -27,9 +27,9 @@ const {
   acceptedFiles,
   draggedFiles,
   getRootProps,
-  getInputProps,
+  getInputProps
 } = useDropzone({
-  appendFiles: false,
+  appendFiles: false
 });
 ```
 
@@ -41,13 +41,14 @@ const {
   uploadedFiles,
   draggedFiles,
   getRootProps,
-  getInputProps,
+  getInputProps
 } = useDropzone({
   uploadConfig: {
     url: "https://httpbin.org/post", // required
     metadata: {}, // optional
     headers: {}, // optional
-  },
+    withCredentials: true // optional
+  }
 });
 ```
 
