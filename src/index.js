@@ -308,7 +308,6 @@ export default Dropzone
  * @property {File[]} acceptedFiles Accepted files
  * @param {object[]} params.uploadedFiles Uploaded or being uploaded files
  * @property {object[]} updatedFiles All files with updated status or upload percent
- * @property {object[]} updatedFile File with updated status or upload percent
  * @property {FileRejection[]} fileRejections Rejected files and why they were rejected
  */
 
@@ -323,7 +322,6 @@ const initialState = {
   uploadedFiles: [],
   fileRejections: [],
   updatedFiles: [],
-  updatedFile: {},
 }
 
 /**
@@ -430,7 +428,7 @@ export function useDropzone(options = {}) {
   const inputRef = useRef(null)
 
   const [state, dispatch] = useReducer(reducer, initialState)
-  const { isFocused, isFileDialogActive, draggedFiles, acceptedFiles, updatedFiles } = state
+  const { isFocused, isFileDialogActive, draggedFiles, updatedFiles } = state
 
   // Fn for opening the file dialog programmatically
   const openFileDialog = useCallback(() => {
@@ -616,6 +614,7 @@ export function useDropzone(options = {}) {
     [rootRef, onDragLeave, noDragEventsBubbling]
   )
 
+  // Update uploaded files
   useEffect(() => {
     dispatch({
       uploadedFiles: updatedFiles,
@@ -696,9 +695,8 @@ export function useDropzone(options = {}) {
     uploadFile({...file, status})
   } 
 
-  // Upload files
-  useEffect(() => {
-    const _acceptedFiles = []
+  const uploadFiles = (acceptedFiles) => {
+    const files = []
     acceptedFiles.forEach((newFile) => {
       const file = {
         ...covertFileToObject(newFile), 
@@ -706,14 +704,13 @@ export function useDropzone(options = {}) {
         percent: 0
       }
       file.restart = () => reUploadFile(file) 
-      _acceptedFiles.push(file)
+      files.push(file)
     })
 
-    // Upload files
-    _acceptedFiles.forEach(file => {
+    files.forEach(file => {
       uploadFile(file)
     })
-  }, [acceptedFiles])
+  }
 
   const onDropCb = useCallback(
     event => {
@@ -757,6 +754,9 @@ export function useDropzone(options = {}) {
             fileRejections,
             type: 'setFiles'
           })
+
+          // Upload files
+          uploadFiles(acceptedFiles)
 
           if (onDrop) {
             onDrop(acceptedFiles, fileRejections, event)
@@ -928,11 +928,10 @@ function reducer(state, action) {
         fileRejections: action.fileRejections
       }
     case 'setUpdatedFiles':
-      const {updatedFiles} = state
+      const { updatedFiles } = state
       const files = getUpdatedFiles(action.updatedFile, updatedFiles)
       return {
         ...state,
-        updatedFile: action.updatedFile,
         updatedFiles: files,
       }
     case 'setUploadedFiles':
@@ -950,7 +949,6 @@ function reducer(state, action) {
         uploadedFiles: [],
         fileRejections: [],
         updatedFiles: [],
-        updatedFile: {},
       }
     default:
       return state
