@@ -42,7 +42,6 @@ export type DropzoneOptions = Pick<React.HTMLProps<HTMLElement>, PropTypes> & {
   noDrag?: boolean;
   noDragEventsBubbling?: boolean;
   disabled?: boolean;
-  appendFiles?: boolean;
   onDrop?: <T extends File>(
     acceptedFiles: T[],
     fileRejections: FileRejection[],

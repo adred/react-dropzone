@@ -167,7 +167,6 @@ export const getUpdatedFiles = (updatedFile, uploadedFiles) => {
     if (targetIndex === -1) {
       updatedFiles.push(updatedFile)
     } else {
-      console.log('getUpdatedFiles:updatedFile:util', updatedFile)
       updatedFiles[targetIndex] = updatedFile
     }
 

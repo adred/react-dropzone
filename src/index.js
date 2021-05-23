@@ -63,7 +63,6 @@ const defaultProps = {
   noKeyboard: false,
   noDrag: false,
   noDragEventsBubbling: false,
-  appendFiles: true,
   uploadConfig: null,
 }
 
@@ -129,11 +128,6 @@ Dropzone.propTypes = {
    * If true, stops drag event propagation to parents
    */
   noDragEventsBubbling: PropTypes.bool,
-
-  /**
-   * If true, allows dragging of files multiple times without removing the provious ones
-   */
-  appendFiles: PropTypes.bool,
 
   /**
    * Upload config 
@@ -251,21 +245,6 @@ Dropzone.propTypes = {
 
 export default Dropzone
 
-export const usePrevious = (value) => {
-  // The ref object is a generic container whose current property is mutable ...
-  // ... and can hold any value, similar to an instance property on a class
-  const ref = useRef();
-
-  // Store current value in ref
-  useEffect(() => {
-      ref.current = value;
-  }, [value]); // Only re-run if value changes
-
-  // Return previous value (happens before update in useEffect above)
-  return ref.current;
-};
-
-
 /**
  * A function that is invoked for the `dragenter`,
  * `dragover` and `dragleave` events.
@@ -328,6 +307,8 @@ export const usePrevious = (value) => {
  * @property {File[]} draggedFiles Files in active drag
  * @property {File[]} acceptedFiles Accepted files
  * @param {object[]} params.uploadedFiles Uploaded or being uploaded files
+ * @property {object[]} updatedFiles All files with updated status or upload percent
+ * @property {object[]} updatedFile File with updated status or upload percent
  * @property {FileRejection[]} fileRejections Rejected files and why they were rejected
  */
 
@@ -380,7 +361,6 @@ const initialState = {
  * Note that it also stops tracking the focus state.
  * @param {boolean} [props.noDrag=false] If true, disables drag 'n' drop
  * @param {boolean} [props.noDragEventsBubbling=false] If true, stops drag event propagation to parents
- * @param {boolean} [props.appendFiles=true] If true, allows dragging of files multiple times without removing the provious ones
  * @param {boolean} [props.uploadConfig=null] Upload config
  * @param {number} [props.minSize=0] Minimum file size (in bytes)
  * @param {number} [props.maxSize=Infinity] Maximum file size (in bytes)
@@ -450,9 +430,7 @@ export function useDropzone(options = {}) {
   const inputRef = useRef(null)
 
   const [state, dispatch] = useReducer(reducer, initialState)
-  const { isFocused, isFileDialogActive, draggedFiles, updatedFile, uploadedFiles, updatedFiles } = state
-  console.log('STATE', state)
-  const prevUpdatedFile = usePrevious(updatedFile)
+  const { isFocused, isFileDialogActive, draggedFiles, acceptedFiles, updatedFiles } = state
 
   // Fn for opening the file dialog programmatically
   const openFileDialog = useCallback(() => {
@@ -638,21 +616,6 @@ export function useDropzone(options = {}) {
     [rootRef, onDragLeave, noDragEventsBubbling]
   )
 
-  const getUpdatedFiles = (updatedFile, uploadedFiles) => {
-    const updatedFiles = [...uploadedFiles]
-
-    const targetIndex = uploadedFiles.findIndex(file => file.path === updatedFile.path)
-
-    if (targetIndex === -1) {
-      updatedFiles.push(updatedFile)
-    } else {
-      console.log('getUpdatedFiles:updatedFile', updatedFile)
-      updatedFiles[targetIndex] = updatedFile
-    }
-
-    return updatedFiles
-  }
-
   useEffect(() => {
     dispatch({
       uploadedFiles: updatedFiles,
@@ -662,12 +625,6 @@ export function useDropzone(options = {}) {
 
   const onProgress = (e, file) => {
     const percent = (e.loaded * 100.0) / e.total || 100
-
-    // console.log('onProgress:file', file)
-    // console.log('onProgress:acceptedFiles', acceptedFiles)
-    console.log(`onProgress:percent:${file.name}`, percent)
-    // console.log('onProgress:status', status)
-    // console.log('onProgress:getUpdatedFiles', getUpdatedFiles({...file, percent, status}, acceptedFiles))
 
     dispatch({
       updatedFile: {...file, percent, status: 'uploading'},
@@ -690,25 +647,17 @@ export function useDropzone(options = {}) {
       })
     }
 
-    // console.log('file', file)
-    // console.log('xhr', xhr)
-
     if (xhr.status > 0 && xhr.status < 400) {
       if (xhr.readyState === 2) {
         status = 'headers_received'
       } 
       if (xhr.readyState === 4) {
         status = 'done'
-        // console.log('got here')
       }
-      // console.log('status', status)
-      // Reset to prevent infinite loop
       dispatch({
         updatedFile: {...file, status},
         type: 'setUpdatedFiles'
       })
-      // console.log('updated the file')
-      // setUpdatedFile(undefined)
     }
 
     if (xhr.status >= 400 && file.status !== 'error_upload') {
@@ -747,6 +696,25 @@ export function useDropzone(options = {}) {
     uploadFile({...file, status})
   } 
 
+  // Upload files
+  useEffect(() => {
+    const _acceptedFiles = []
+    acceptedFiles.forEach((newFile) => {
+      const file = {
+        ...covertFileToObject(newFile), 
+        status: 'started', 
+        percent: 0
+      }
+      file.restart = () => reUploadFile(file) 
+      _acceptedFiles.push(file)
+    })
+
+    // Upload files
+    _acceptedFiles.forEach(file => {
+      uploadFile(file)
+    })
+  }, [acceptedFiles])
+
   const onDropCb = useCallback(
     event => {
       event.preventDefault()
@@ -769,7 +737,6 @@ export function useDropzone(options = {}) {
             const [accepted, acceptError] = fileAccepted(file, accept)
             const [sizeMatch, sizeError] = fileMatchSize(file, minSize, maxSize)
             if (accepted && sizeMatch) {
-              file.restart = () => reUploadFile(file) 
               acceptedFiles.push(file)
             } else {
               const errors = [acceptError, sizeError].filter(e => e)
@@ -784,29 +751,6 @@ export function useDropzone(options = {}) {
             })
             acceptedFiles.splice(0)
           }
-
-          const _acceptedFiles = []
-          acceptedFiles.forEach((newFile) => {
-            const file = {
-              ...covertFileToObject(newFile), 
-              status: 'started', 
-              percent: 0
-            }
-            file.restart = () => reUploadFile(file) 
-            _acceptedFiles.push(file)
-          })
-
-          // dispatch({
-          //   uploadedFiles: _acceptedFiles,
-          //   type: 'setUploadedFiles'
-          // })
-
-          console.log('hereeeee', _acceptedFiles)
-
-          // Upload files
-          _acceptedFiles.forEach(file => {
-            uploadFile(file)
-          })
         
           dispatch({
             acceptedFiles: acceptedFiles,
@@ -1005,6 +949,7 @@ function reducer(state, action) {
         acceptedFiles: [],
         uploadedFiles: [],
         fileRejections: [],
+        updatedFiles: [],
         updatedFile: {},
       }
     default:
