@@ -9,7 +9,7 @@
     "build": "npm run clean && npm run build:umd && npm run build:es",
     "build:umd": "cross-env NODE_ENV=es rollup -c",
     "build:es": "cross-env BABEL_ENV=es babel ./src --out-dir ./dist/es --ignore '**/*.spec.js'",
-    "start": "styleguidist server --port=6060",
+    "start": "styleguidist server",
     "styleguide": "styleguidist build",
     "test": "cross-env NODE_ENV=test npm run eslint:src && jest --coverage && npm run typescript",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
@@ -76,7 +76,7 @@
     "url": "https://github.com/adred/selfmade-react-dropzone/issues"
   },
   "homepage": "https://github.com/adred/selfmade-react-dropzone",
-  "author": "Redeye Adaya <redeye@selfmade.com.au>",
+  "author": "Redeye Adaya <red.adaya@gmail.com>",
   "license": "MIT",
   "peerDependencies": {
     "react": ">= 16.8"
@@ -158,7 +158,7 @@
       "path": "@commitlint/prompt"
     }
   },
-  "version": "0.3.1",
+  "version": "0.3.2",
   "engines": {
     "node": ">= 10"
   },

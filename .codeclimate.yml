@@ -1,15 +1,15 @@
 engines:
- duplication:
-   enabled: true
-   config:
-     languages:
-     - javascript
- eslint:
-   enabled: true
-   channel: "eslint-3"
+  duplication:
+    enabled: true
+    config:
+      languages:
+        - javascript
+  eslint:
+    enabled: true
+    channel: "eslint-3"
 ratings:
- paths:
- - "**.js"
+  paths:
+    - "**.js"
 exclude_paths:
- - "dist/"
- - "src/*.spec.js"
+  - "dist/"
+  - "src/*.spec.js"

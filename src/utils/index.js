@@ -140,7 +140,7 @@ export function composeEventHandlers(...fns) {
  * Converts File to javascript object
  * @param {file} file 
  */
-export const covertFileToObject = (file) => {
+ export const covertFileToObject = (file) => {
   return {
     file, // original file
     lastModified: file.lastModified,
@@ -159,7 +159,7 @@ export const covertFileToObject = (file) => {
  * @param {*} uploadedFiles 
  * @returns 
  */
-export const getUpdatedFiles = (updatedFile, uploadedFiles) => {
+ export const getUpdatedFiles = (updatedFile, uploadedFiles) => {
   const updatedFiles = [...uploadedFiles]
 
     const targetIndex = uploadedFiles.findIndex(file => file.path === updatedFile.path)

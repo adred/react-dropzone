@@ -7,7 +7,7 @@ import React, {
   useImperativeHandle,
   useMemo,
   useReducer,
-  useRef,
+  useRef
 } from 'react'
 import PropTypes from 'prop-types'
 import { fromEvent } from 'file-selector'
@@ -63,6 +63,7 @@ const defaultProps = {
   noKeyboard: false,
   noDrag: false,
   noDragEventsBubbling: false,
+  validator: null,
   uploadConfig: null,
 }
 
@@ -130,16 +131,6 @@ Dropzone.propTypes = {
   noDragEventsBubbling: PropTypes.bool,
 
   /**
-   * Upload config 
-   */
-  uploadConfig: PropTypes.shape({
-    url: PropTypes.string,
-    metadata: PropTypes.object,
-    headers: PropTypes.object,
-    withCredentials: PropTypes.bool,
-  }),
-
-  /**
    * Minimum file size (in bytes)
    */
   minSize: PropTypes.number,
@@ -158,6 +149,16 @@ Dropzone.propTypes = {
    * Enable/disable the dropzone
    */
   disabled: PropTypes.bool,
+
+  /**
+   * Upload config 
+   */
+  uploadConfig: PropTypes.shape({
+    url: PropTypes.string,
+    metadata: PropTypes.object,
+    headers: PropTypes.object,
+    withCredentials: PropTypes.bool,
+  }),
 
   /**
    * Use this to provide a custom file aggregator
@@ -240,7 +241,14 @@ Dropzone.propTypes = {
    * @param {FileRejection[]} fileRejections
    * @param {(DragEvent|Event)} event
    */
-  onDropRejected: PropTypes.func
+  onDropRejected: PropTypes.func,
+
+  /**
+   * Custom validation function 
+   * @param {File} file
+   * @returns {FileError|FileError[]}
+   */
+  validator: PropTypes.func
 }
 
 export default Dropzone
@@ -306,7 +314,7 @@ export default Dropzone
  * @property {boolean} isDragReject Some dragged files are rejected
  * @property {File[]} draggedFiles Files in active drag
  * @property {File[]} acceptedFiles Accepted files
- * @param {object[]} params.uploadedFiles Uploaded or being uploaded files
+ * @param {object[]} uploadedFiles Uploaded or being uploaded files
  * @property {object[]} updatedFiles All files with updated status or upload percent
  * @property {FileRejection[]} fileRejections Rejected files and why they were rejected
  */
@@ -319,8 +327,8 @@ const initialState = {
   isDragReject: false,
   draggedFiles: [],
   acceptedFiles: [],
-  uploadedFiles: [],
   fileRejections: [],
+  uploadedFiles: [],
   updatedFiles: [],
 }
 
@@ -418,6 +426,7 @@ export function useDropzone(options = {}) {
     noKeyboard,
     noDrag,
     noDragEventsBubbling,
+    validator,
     uploadConfig
   } = {
     ...defaultProps,
@@ -565,13 +574,14 @@ export function useDropzone(options = {}) {
       event.persist()
       stopPropagation(event)
 
-      if (event.dataTransfer) {
+      const hasFiles = isEvtWithFiles(event);
+      if (hasFiles && event.dataTransfer) {
         try {
           event.dataTransfer.dropEffect = 'copy'
         } catch {} /* eslint-disable-line no-empty */
       }
 
-      if (isEvtWithFiles(event) && onDragOver) {
+      if (hasFiles && onDragOver) {
         onDragOver(event)
       }
 
@@ -613,7 +623,7 @@ export function useDropzone(options = {}) {
     },
     [rootRef, onDragLeave, noDragEventsBubbling]
   )
-
+  
   // Update uploaded files
   useEffect(() => {
     dispatch({
@@ -733,11 +743,18 @@ export function useDropzone(options = {}) {
           files.forEach(file => {
             const [accepted, acceptError] = fileAccepted(file, accept)
             const [sizeMatch, sizeError] = fileMatchSize(file, minSize, maxSize)
-            if (accepted && sizeMatch) {
+            const customErrors = validator ? validator(file) : null;
+
+            if (accepted && sizeMatch && !customErrors) {
               acceptedFiles.push(file)
             } else {
-              const errors = [acceptError, sizeError].filter(e => e)
-              fileRejections.push({ file, errors })
+              let errors = [acceptError, sizeError];
+              
+              if (customErrors) {
+                errors = errors.concat(customErrors);
+              }
+
+              fileRejections.push({ file, errors: errors.filter(e => e) })
             }
           })
 
@@ -750,7 +767,7 @@ export function useDropzone(options = {}) {
           }
         
           dispatch({
-            acceptedFiles: acceptedFiles,
+            acceptedFiles,
             fileRejections,
             type: 'setFiles'
           })
@@ -948,8 +965,8 @@ function reducer(state, action) {
         isDragActive: false,
         draggedFiles: [],
         acceptedFiles: [],
-        uploadedFiles: [],
         fileRejections: [],
+        uploadedFiles: [],
         updatedFiles: [],
       }
     default:
