@@ -717,8 +717,14 @@ export function useDropzone(options = {}) {
   }
 
   const reUploadFile = (file) => {
-    let status = 'restarted'
-    uploadFile({...file, status})
+    uploadFile({...file, status: 'restarted'})
+  } 
+
+  const removeFile = (file) => {
+    dispatch({
+      updatedFile: {...file, status: 'removed'},
+      type: 'setUpdatedFiles'
+    })
   } 
 
   const uploadFiles = (acceptedFiles) => {
@@ -730,6 +736,7 @@ export function useDropzone(options = {}) {
         percent: 0
       }
       file.restart = () => reUploadFile(file) 
+      file.remove = () => removeFile(file)
       files.push(file)
     })
 

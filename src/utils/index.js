@@ -154,14 +154,17 @@ export function composeEventHandlers(...fns) {
 }
 
 /**
- * Replace file in uploadFiles that corresponds to updateFile
+ * Replace/remove file in uploadFiles that corresponds to updateFile
  * @param {*} updatedFile 
  * @param {*} uploadedFiles 
  * @returns 
  */
  export const getUpdatedFiles = (updatedFile, uploadedFiles) => {
-  const updatedFiles = [...uploadedFiles]
-
+    if (updatedFile.status === 'removed') {
+      return uploadedFiles.filter(file => file.path !== updatedFile.path)
+    } 
+      
+    const updatedFiles = [...uploadedFiles]
     const targetIndex = uploadedFiles.findIndex(file => file.path === updatedFile.path)
 
     if (targetIndex === -1) {
