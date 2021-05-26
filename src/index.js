@@ -624,6 +624,14 @@ export function useDropzone(options = {}) {
     [rootRef, onDragLeave, noDragEventsBubbling]
   )
   
+  // Empty uploadedFiles on unmount
+  useEffect(() => {
+    dispatch({
+      uploadedFiles: [],
+      type: 'setUploadedFiles'
+    })
+  }, [])
+
   // Update uploaded files
   useEffect(() => {
     dispatch({
@@ -723,6 +731,12 @@ export function useDropzone(options = {}) {
       }
       file.restart = () => reUploadFile(file) 
       files.push(file)
+    })
+
+    // Init uploadedFiles
+    dispatch({
+      uploadedFiles: files,
+      type: 'setUploadedFiles'
     })
 
     files.forEach(file => {
