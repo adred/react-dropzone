@@ -642,36 +642,44 @@ export function useDropzone(options = {}) {
   }
 
   const onReadyStateChange = (xhr, file) => {
+    const { readyState, status, responseText } = xhr
+
     // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
-    if (xhr.readyState !== 2 && xhr.readyState !== 4) {
+    if (readyState !== 2 && readyState !== 4) {
       return 
     } 
 
-    let status
-    if (xhr.status === 0) {
-      status = 'exception_upload'
+    if (status === 0) {
       dispatch({
-        updatedFile: {...file, status: 'exception_upload'},
+        updatedFile: {...file, responseText, status: 'unsent'},
         type: 'setUpdatedFiles'
       })
     }
 
-    if (xhr.status > 0 && xhr.status < 400) {
-      if (xhr.readyState === 2) {
-        status = 'headers_received'
+    if (status > 0 && status < 400) {
+      let _status
+      if (readyState === 2) {
+        _status = 'headers_received'
       } 
-      if (xhr.readyState === 4) {
-        status = 'done'
+      if (readyState === 4) {
+        _status = 'done'
       }
       dispatch({
-        updatedFile: {...file, status},
+        updatedFile: {...file, responseText, status: _status},
         type: 'setUpdatedFiles'
       })
     }
 
-    if (xhr.status >= 400 && file.status !== 'error_upload') {
+    if (status >= 400 && status < 500 && file.status !== '400') {
       dispatch({
-        updatedFile: {...file, status: 'error_upload'},
+        updatedFile: {...file, responseText, status: '400'},
+        type: 'setUpdatedFiles'
+      })
+    }
+
+    if (status >= 500 && file.status !== '500') {
+      dispatch({
+        updatedFile: {...file, responseText, status: '500'},
         type: 'setUpdatedFiles'
       })
     }
