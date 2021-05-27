@@ -20,7 +20,7 @@ yarn add selfmade-react-dropzone
 
 ## Usage
 
-Please refer to https://react-dropzone.js.org for most of the functionality it offers.
+Please refer to [react-dropzone](https://react-dropzone.js.org) for most of the functionality it offers.
 
 For auto-uploading files, you need to pass `uploadConfig` prop. To monitor the progress, you can access the files with status through `uploadedFiles` state.
 
@@ -36,7 +36,8 @@ const {
     url: "https://httpbin.org/post", // required
     metadata: {}, // optional
     headers: {}, // optional
-    withCredentials: true // optional
+    withCredentials: true, // optional
+    responseType: "json" // optional
   }
 });
 ```
