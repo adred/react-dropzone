@@ -4,7 +4,7 @@ Simple React hook to create a HTML5-compliant drag'n'drop zone for files with su
 
 ## Demo
 
-[Demo]https://codesandbox.io/s/selfmade-react-dropzone-demo-4zx3z?file=/package.json
+[Demo](https://codesandbox.io/s/selfmade-react-dropzone-demo-4zx3z?file=/src/App.js)
 
 ## Installation
 
