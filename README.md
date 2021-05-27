@@ -1,14 +1,12 @@
 # selfmade-react-dropzone
 
-Simple React hook to create a HTML5-compliant drag'n'drop zone for files with support for auto-upload. This is based on https://github.com/react-dropzone/react-dropzone/
+Simple React hook to create a HTML5-compliant drag'n'drop zone for files with support for auto-upload. This is based on [react-dropzone](https://github.com/react-dropzone/react-dropzone/)
 
 ## Demo
 
 [Demo](https://codesandbox.io/s/selfmade-react-dropzone-demo-4zx3z?file=/src/App.js)
 
 ## Installation
-
-Install it from npm and include it in your React build process (using [Webpack](http://webpack.github.io/), [Browserify](http://browserify.org/), etc).
 
 ```bash
 npm install --save selfmade-react-dropzone
