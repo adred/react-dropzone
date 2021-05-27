@@ -650,7 +650,7 @@ export function useDropzone(options = {}) {
   }
 
   const onReadyStateChange = (xhr, file) => {
-    const { readyState, status, responseText } = xhr
+    const { readyState, status, response } = xhr
 
     // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/readyState
     if (readyState !== 2 && readyState !== 4) {
@@ -659,7 +659,7 @@ export function useDropzone(options = {}) {
 
     if (status === 0) {
       dispatch({
-        updatedFile: {...file, responseText, status: 'unsent'},
+        updatedFile: {...file, response, status: 'unsent'},
         type: 'setUpdatedFiles'
       })
     }
@@ -673,32 +673,33 @@ export function useDropzone(options = {}) {
         _status = 'done'
       }
       dispatch({
-        updatedFile: {...file, responseText, status: _status},
+        updatedFile: {...file, response, status: _status},
         type: 'setUpdatedFiles'
       })
     }
 
     if (status >= 400 && status < 500 && file.status !== '400') {
       dispatch({
-        updatedFile: {...file, responseText, status: '400'},
+        updatedFile: {...file, response, status: '400'},
         type: 'setUpdatedFiles'
       })
     }
 
     if (status >= 500 && file.status !== '500') {
       dispatch({
-        updatedFile: {...file, responseText, status: '500'},
+        updatedFile: {...file, response, status: '500'},
         type: 'setUpdatedFiles'
       })
     }
   }
 
   const uploadFile = (file) => {
-    const {url, metadata={}, headers = {}, withCredentials = false} = uploadConfig || {}
+    const {url, metadata={}, headers = {}, responseType = 'json', withCredentials = false} = uploadConfig || {}
 
     const xhr = new XMLHttpRequest()
     xhr.open('POST', url, true)
-    xhr.withCredentials = withCredentials;
+    xhr.responseType = responseType
+    xhr.withCredentials = withCredentials
     const formData = new FormData()
 
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest')
