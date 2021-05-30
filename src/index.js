@@ -21,7 +21,6 @@ import {
   isPropagationStopped,
   onDocumentDragOver,
   covertFileToObject,
-  getUpdatedFiles,
   TOO_MANY_FILES_REJECTION
 } from './utils/index'
 
@@ -315,7 +314,6 @@ export default Dropzone
  * @property {File[]} draggedFiles Files in active drag
  * @property {File[]} acceptedFiles Accepted files
  * @param {object[]} uploadedFiles Uploaded or being uploaded files
- * @property {object[]} updatedFiles All files with updated status or upload percent
  * @property {FileRejection[]} fileRejections Rejected files and why they were rejected
  */
 
@@ -328,8 +326,7 @@ const initialState = {
   draggedFiles: [],
   acceptedFiles: [],
   fileRejections: [],
-  uploadedFiles: [],
-  updatedFiles: [],
+  uploadedFiles: []
 }
 
 /**
@@ -405,7 +402,7 @@ const initialState = {
  *
  * @returns {DropzoneState}
  */
-export function useDropzone(options = {}) {
+export const useDropzone = (options = {}) => {
   const {
     accept,
     disabled,
@@ -436,8 +433,9 @@ export function useDropzone(options = {}) {
   const rootRef = useRef(null)
   const inputRef = useRef(null)
 
-  const [state, dispatch] = useReducer(reducer, initialState)
-  const { isFocused, isFileDialogActive, draggedFiles, updatedFiles } = state
+  const [state, dispatch] = useReducerWithMiddlewares(reducer, initialState, [setUploadedFilesMw])
+  // const [state, dispatch] = useReducer(reducer, initialState)
+  const { isFocused, isFileDialogActive, draggedFiles } = state
 
   // Fn for opening the file dialog programmatically
   const openFileDialog = useCallback(() => {
@@ -623,29 +621,37 @@ export function useDropzone(options = {}) {
     },
     [rootRef, onDragLeave, noDragEventsBubbling]
   )
-  
-  // Empty uploadedFiles on unmount
-  useEffect(() => {
-    dispatch({
-      uploadedFiles: [],
-      type: 'setUploadedFiles'
-    })
-  }, [])
 
-  // Update uploaded files
-  useEffect(() => {
-    dispatch({
-      uploadedFiles: updatedFiles,
-      type: 'setUploadedFiles'
-    })
-  }, [updatedFiles])
+  // Update uploaded files on each file update
+  const setUploadedFilesMw = (state, action) => {
+    const { updatedFile, type } = action
+    if (type !== 'setUpdatedFile') return
+
+    const { uploadedFiles } = state
+
+    if (updatedFile.status === 'removed') {
+      const filteredFiles = uploadedFiles.filter(file => file.path !== updatedFile.path)
+      return {...state, uploadedFiles: filteredFiles}
+    } 
+      
+    const updatedFiles = [...uploadedFiles]
+    const targetIndex = uploadedFiles.findIndex(file => file.path === updatedFile.path)
+
+    if (targetIndex === -1) {
+      updatedFiles.push(updatedFile)
+    } else {
+      updatedFiles[targetIndex] = updatedFile
+    }
+
+    return {...state, uploadedFiles: updatedFiles}
+  }
 
   const onProgress = (e, file) => {
     const percent = (e.loaded * 100.0) / e.total || 100
 
     dispatch({
       updatedFile: {...file, percent, status: 'uploading'},
-      type: 'setUpdatedFiles'
+      type: 'setUpdatedFile'
     })
   }
 
@@ -660,7 +666,7 @@ export function useDropzone(options = {}) {
     if (status === 0) {
       dispatch({
         updatedFile: {...file, response, status: 'unsent'},
-        type: 'setUpdatedFiles'
+        type: 'setUpdatedFile'
       })
     }
 
@@ -674,21 +680,21 @@ export function useDropzone(options = {}) {
       }
       dispatch({
         updatedFile: {...file, response, status: _status},
-        type: 'setUpdatedFiles'
+        type: 'setUpdatedFile'
       })
     }
 
     if (status >= 400 && status < 500 && file.status !== '400') {
       dispatch({
         updatedFile: {...file, response, status: '400'},
-        type: 'setUpdatedFiles'
+        type: 'setUpdatedFile'
       })
     }
 
     if (status >= 500 && file.status !== '500') {
       dispatch({
         updatedFile: {...file, response, status: '500'},
-        type: 'setUpdatedFiles'
+        type: 'setUpdatedFile'
       })
     }
   }
@@ -724,7 +730,7 @@ export function useDropzone(options = {}) {
   const removeFile = (file) => {
     dispatch({
       updatedFile: {...file, status: 'removed'},
-      type: 'setUpdatedFiles'
+      type: 'setUpdatedFile'
     })
   } 
 
@@ -939,7 +945,26 @@ export function useDropzone(options = {}) {
   }
 }
 
-function reducer(state, action) {
+/**
+ * useReducer wrapper for invoking middlewares
+ * @param {*} reducer The reducer
+ * @param {*} initialState The initial state
+ * @param {*} middlewares Array of middlewares
+ * @returns 
+ */
+ const useReducerWithMiddlewares = (reducer, initialState, middlewares) => {
+  const [state, dispatch] = useReducer(reducer, initialState)
+
+  let _state = state
+  const dispatchUsingMiddlewares = (action) => {
+    _state = middlewares.reduce((st, fn) => fn && fn(st, action), _state)
+    dispatch(action)
+  }
+
+  return [_state, dispatchUsingMiddlewares]
+}
+
+const reducer = (state, action) => {
   /* istanbul ignore next */
   switch (action.type) {
     case 'focus':
@@ -976,13 +1001,6 @@ function reducer(state, action) {
         acceptedFiles: action.acceptedFiles,
         fileRejections: action.fileRejections
       }
-    case 'setUpdatedFiles':
-      const { updatedFiles } = state
-      const files = getUpdatedFiles(action.updatedFile, updatedFiles)
-      return {
-        ...state,
-        updatedFiles: files,
-      }
     case 'setUploadedFiles':
       return {
         ...state,
@@ -997,7 +1015,6 @@ function reducer(state, action) {
         acceptedFiles: [],
         fileRejections: [],
         uploadedFiles: [],
-        updatedFiles: [],
       }
     default:
       return state
